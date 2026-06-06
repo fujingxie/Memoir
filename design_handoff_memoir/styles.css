@@ -1,0 +1,153 @@
+/* ============================================================
+   Memoir — Design Tokens & Global Styles
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* ---------- DARK THEME (default) ---------- */
+:root,
+[data-theme="dark"] {
+  --primary:        #6366F1;
+  --primary-hover:  #818CF8;
+  --primary-active: #4F46E5;
+  --primary-soft:   rgba(99,102,241,0.14);
+  --primary-ring:   rgba(99,102,241,0.35);
+
+  --accent:         #2DD4BF;
+  --accent-soft:    rgba(45,212,191,0.13);
+
+  --bg:               #0E0F13;
+  --surface:          #16181D;
+  --surface-elevated: #1E2128;
+  --surface-hover:    #20242C;
+  --border:           #2A2E37;
+  --border-strong:    #363B46;
+
+  --text-primary:   #E6E8EC;
+  --text-secondary: #9CA3AF;
+  --text-tertiary:  #6B7280;
+
+  --success: #22C55E; --success-soft: rgba(34,197,94,0.14);
+  --warning: #F59E0B; --warning-soft: rgba(245,158,11,0.15);
+  --error:   #EF4444; --error-soft:   rgba(239,68,68,0.14);
+  --info:    #3B82F6; --info-soft:    rgba(59,130,246,0.14);
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.5);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,.6);
+
+  --diff-add: rgba(34,197,94,0.12);
+  --diff-del: rgba(239,68,68,0.12);
+  --diff-add-text: #4ade80;
+  --diff-del-text: #f87171;
+
+  --desktop: radial-gradient(120% 120% at 70% 0%, #1b2233 0%, #0b0d12 55%, #07080b 100%);
+  --titlebar: rgba(20,22,27,0.7);
+  --scrollbar: #2A2E37;
+}
+
+/* ---------- LIGHT THEME ---------- */
+[data-theme="light"] {
+  --primary:        #4F46E5;
+  --primary-hover:  #6366F1;
+  --primary-active: #4338CA;
+  --primary-soft:   rgba(99,102,241,0.10);
+  --primary-ring:   rgba(99,102,241,0.30);
+
+  --accent:         #0D9488;
+  --accent-soft:    rgba(13,148,136,0.10);
+
+  --bg:               #F5F6F8;
+  --surface:          #FFFFFF;
+  --surface-elevated: #FFFFFF;
+  --surface-hover:    #F0F2F5;
+  --border:           #E3E6EB;
+  --border-strong:    #D2D7DE;
+
+  --text-primary:   #1A1D23;
+  --text-secondary: #57606A;
+  --text-tertiary:  #8B95A1;
+
+  --success: #16A34A; --success-soft: rgba(22,163,74,0.10);
+  --warning: #D97706; --warning-soft: rgba(217,119,6,0.12);
+  --error:   #DC2626; --error-soft:   rgba(220,38,38,0.10);
+  --info:    #2563EB; --info-soft:    rgba(37,99,235,0.10);
+
+  --shadow-sm: 0 1px 2px rgba(15,23,42,.06);
+  --shadow-md: 0 4px 14px rgba(15,23,42,.10);
+  --shadow-lg: 0 14px 36px rgba(15,23,42,.16);
+
+  --diff-add: rgba(22,163,74,0.10);
+  --diff-del: rgba(220,38,38,0.09);
+  --diff-add-text: #15803d;
+  --diff-del-text: #b91c1c;
+
+  --desktop: radial-gradient(120% 120% at 70% 0%, #dfe5ee 0%, #cdd5e1 55%, #b9c2d1 100%);
+  --titlebar: rgba(255,255,255,0.72);
+  --scrollbar: #D2D7DE;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background: var(--desktop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: background .4s ease;
+}
+
+#root { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+/* ---------- Scrollbars ---------- */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); background-clip: padding-box; }
+
+/* ---------- Selection ---------- */
+::selection { background: var(--primary-soft); color: var(--text-primary); }
+
+/* ---------- Focus ring helper ---------- */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--primary-ring);
+}
+
+/* ---------- Keyframes ---------- */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideInRight { from { transform: translateX(40px); } to { transform: translateX(0); } }
+@keyframes scaleIn { from { transform: scale(.975) translateY(6px); } to { transform: scale(1) translateY(0); } }
+@keyframes shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+@keyframes ringDraw { from { stroke-dashoffset: var(--ring-circ); } }
+@keyframes caretBlink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes riseIn { from { transform: translateY(10px); } to { transform: translateY(0); } }
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 0px, var(--surface-elevated) 40px, var(--surface) 80px);
+  background-size: 600px 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: 6px;
+}
+
+/* card grid stagger — transform-only entrance: base opacity stays 1, so
+   content is always visible even if the iframe throttles animations. */
+.stagger > * { animation: riseIn .42s cubic-bezier(.22,.61,.36,1); }
