@@ -4,16 +4,17 @@ export function archiveFilledCount(archive: ArchiveState): number {
   return (Object.keys(archive) as Array<keyof ArchiveState>).filter((key) => archive[key].filled).length;
 }
 
-export function computeCompleteness(project: Project, archiveState: ArchiveState): number {
-  const filled = archiveFilledCount(archiveState);
-  const score =
-    filled * 20 +
-    (project.git.tracked ? 8 : 0) +
-    (project.description ? 6 : 0) +
-    (project.docs.length > 0 ? 4 : 0) +
-    (project.commits.length > 0 ? 2 : 0);
+export function archiveCompleteness(archive: ArchiveState): number {
+  return archiveFilledCount(archive) * 25;
+}
 
-  return Math.max(0, Math.min(100, score));
+export function computeCompleteness(project: Project, archiveState: ArchiveState): number {
+  const score = archiveCompleteness(archiveState);
+  if (score === 0 && typeof project.archiveCompleteness === "number") {
+    return Math.max(0, Math.min(100, project.archiveCompleteness));
+  }
+
+  return score;
 }
 
 export function ringColor(value: number): string {

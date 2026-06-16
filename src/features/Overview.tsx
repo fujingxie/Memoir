@@ -9,13 +9,16 @@ import {
   StatusBadge,
   TagChip,
 } from "../components/Primitives";
+import { categoryLabel } from "../lib/categories";
 import { computeCompleteness } from "../lib/completeness";
+import { openPersistedProjectDir, openPersistedProjectEditor } from "../lib/projects-api";
 import type { ArchiveState, Project, ViewMode } from "../lib/types";
 
 interface OverviewProps {
   projects: Project[];
   loading: boolean;
   view: ViewMode;
+  scopeLabel: string;
   archives: Record<string, ArchiveState>;
   hasActiveFilters: boolean;
   onOpen: (id: string) => void;
@@ -28,6 +31,7 @@ export function Overview({
   projects,
   loading,
   view,
+  scopeLabel,
   archives,
   hasActiveFilters,
   onOpen,
@@ -86,7 +90,7 @@ export function Overview({
         />
       ) : null}
       <ProjectSection
-        title={`全部项目 · ${rest.length}`}
+        title={`${scopeLabel} · ${rest.length}`}
         projects={rest}
         view={view}
         archives={archives}
@@ -149,15 +153,93 @@ function ProjectCard({
 }) {
   const completeness = computeCompleteness(project, archive);
   const low = completeness < 40;
+  const summary = toCardSummary(project.description);
+  const activityTime = activityTimeLabel(project);
+  const openDirectory = async () => {
+    try {
+      const message = await openPersistedProjectDir(project.id);
+      onToast(message ?? `已打开 ${project.path}`, "success");
+    } catch (error) {
+      console.log("[DEBUG][ProjectCard.openDirectory]", { error }, new Date().toISOString());
+      onToast(error instanceof Error ? error.message : "打开目录失败", "error");
+    }
+  };
+  const openEditor = async () => {
+    try {
+      const message = await openPersistedProjectEditor(project.id);
+      onToast(message ?? `已用默认编辑器打开 ${project.name}`, "success");
+    } catch (error) {
+      console.log("[DEBUG][ProjectCard.openEditor]", { error }, new Date().toISOString());
+      onToast(error instanceof Error ? error.message : "编辑器打开失败", "error");
+    }
+  };
+
+  if (list) {
+    return (
+      <article className={`project-card list ${low ? "low" : ""}`} onClick={onOpen}>
+        <div className="project-list-identity">
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2">
+              <LangDot lang={project.lang} />
+              <h3 className="truncate text-[15.5px] font-bold text-[var(--text-primary)]">{project.name}</h3>
+              <span className="category-chip">{categoryLabel(project.category)}</span>
+              {project.pinned ? <AppIcon name="tag" size={12} color="var(--text-tertiary)" /> : null}
+            </div>
+            <div className="mono mt-1 truncate text-[11.5px] text-[var(--text-tertiary)]">{project.path}</div>
+          </div>
+          <CompletenessRing value={completeness} size={44} />
+        </div>
+
+        <p className={`project-list-summary ${summary ? "" : "empty"}`}>
+          {summary || "还没有档案 — 用 AI 补一份留痕"}
+        </p>
+
+        <div className="project-list-meta">
+          <div className="project-list-tags">
+            {project.tags.slice(0, 3).map((tag) => (
+              <TagChip key={tag}>{tag}</TagChip>
+            ))}
+          </div>
+          <div className="project-list-state">
+            <GitBadge git={project.git} />
+            <span className="inline-flex min-w-0 items-center gap-1 text-[12px] text-[var(--text-tertiary)]">
+              <AppIcon name="clock" size={13} />
+              <span className="truncate">{activityTime}</span>
+            </span>
+            <StatusBadge status={project.status} />
+          </div>
+        </div>
+
+        <span
+          className="project-list-actions"
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+        >
+          <IconButton
+            name="folderOpen"
+            title="在访达打开"
+            onClick={() => void openDirectory()}
+          />
+          <IconButton
+            name="terminal"
+            title="用编辑器打开"
+            onClick={() => void openEditor()}
+          />
+        </span>
+      </article>
+    );
+  }
 
   return (
-    <article className={`project-card ${low ? "low" : ""} ${list ? "list" : ""}`} onClick={onOpen}>
-      <div className={list ? "flex min-w-0 flex-1 items-center gap-4" : "space-y-3"}>
+    <article className={`project-card ${low ? "low" : ""}`} onClick={onOpen}>
+      <div className="space-y-3">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="flex min-w-0 items-center gap-2">
               <LangDot lang={project.lang} />
               <h3 className="truncate text-[15.5px] font-bold text-[var(--text-primary)]">{project.name}</h3>
+              <span className="category-chip">{categoryLabel(project.category)}</span>
               {project.pinned ? <AppIcon name="tag" size={12} color="var(--text-tertiary)" /> : null}
             </div>
             <div className="mono mt-1 truncate text-[11.5px] text-[var(--text-tertiary)]">{project.path}</div>
@@ -165,12 +247,8 @@ function ProjectCard({
           <CompletenessRing value={completeness} size={46} />
         </div>
 
-        <p
-          className={`min-h-[42px] text-[13.5px] leading-relaxed ${
-            project.description ? "text-[var(--text-secondary)]" : "text-[var(--error)]"
-          }`}
-        >
-          {project.description || "还没有档案 — 用 AI 补一份留痕"}
+        <p className={`project-card-summary ${summary ? "" : "empty"}`}>
+          {summary || "还没有档案 — 用 AI 补一份留痕"}
         </p>
 
         <div className="chip-row">
@@ -180,11 +258,11 @@ function ProjectCard({
         </div>
       </div>
 
-      <div className={list ? "ml-auto flex min-w-[260px] items-center gap-3" : "card-footer"}>
+      <div className="card-footer">
         <GitBadge git={project.git} />
         <span className="inline-flex min-w-0 items-center gap-1 text-[12px] text-[var(--text-tertiary)]">
           <AppIcon name="clock" size={13} />
-          <span className="truncate">{project.lastCommit}</span>
+          <span className="truncate">{activityTime}</span>
         </span>
         <span className="status-on-hover ml-auto">
           <StatusBadge status={project.status} />
@@ -198,17 +276,36 @@ function ProjectCard({
           <IconButton
             name="folderOpen"
             title="在访达打开"
-            onClick={() => onToast(`已打开 ${project.path}`, "success")}
+            onClick={() => void openDirectory()}
           />
           <IconButton
             name="terminal"
             title="用编辑器打开"
-            onClick={() => onToast(`已用默认编辑器打开 ${project.name}`, "success")}
+            onClick={() => void openEditor()}
           />
         </span>
       </div>
     </article>
   );
+}
+
+function activityTimeLabel(project: Project) {
+  return project.git.tracked ? project.lastCommit : project.lastOpened;
+}
+
+function toCardSummary(markdown: string) {
+  return markdown
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s{0,3}[-*+]\s+/gm, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/_([^_]+)_/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function SkeletonCard() {

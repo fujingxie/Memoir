@@ -6,23 +6,129 @@
 - 高保真前端复刻: 项目总览、详情 5 Tabs、设置页、Diff 抽屉、AI 流式抽屉、添加项目弹窗。
 - 主题切换: 深色/浅色通过 `data-theme` 与 `localStorage["memoir-theme"]` 持久化。
 - 示例 Tauri 命令: `get_memoir_status` 返回连接状态,前端设置页显示。
-- `tauri-plugin-sql` 已接入 Rust builder,等待 T2 schema/迁移。
+- T2 数据库 schema 与迁移: `projects`、`archives`、`documents`、`git_cache`、`tags`、`project_tags`、`settings`、`chat_links` 已建表。
+- `tauri-plugin-sql` 已注册 `sqlite:memoir.db` preload 迁移,前端启动时也会触发 `Database.load()` 并显示初始化状态。
+- T3 项目发现与总览:
+  - Rust 命令 `scan_projects(roots)` 可递归导入含 `.git` 的项目目录。
+  - Rust 命令 `add_project(path)` 可手动添加普通文件夹或 Git 项目。
+  - Rust 命令 `list_projects(filter, sort)` 可按状态/搜索过滤并按最近打开、最近提交、完整度、名称排序。
+  - 总览页在 Tauri runtime 中读取 SQLite 项目列表；浏览器预览保留 mock 数据。
+- T4 项目详情 + 文件树:
+  - Rust 命令 `get_project(id)` 可按 ID 读取项目详情。
+  - Rust 命令 `get_file_tree(id, depth?)` 可按项目根目录生成可展开文件树,并跳过 `.git`、`node_modules`、`target` 等重目录。
+  - Rust 命令 `read_project_file(id, path)` 可安全读取项目内文本文件；二进制、非 UTF-8、超过 512 KB 的文件显示占位提示。
+  - 文件 Tab 在 Tauri runtime 中读取真实文件树和文本预览；浏览器预览继续使用 mock 数据。
+- T5 Git 读取:
+  - Rust 命令 `git_status(id)` 使用系统 `git` 读取当前分支、远程、ahead/behind、dirty 状态和变更数,并写入 `git_cache`。
+  - Rust 命令 `git_log(id, limit)` 读取最近提交列表,包含 hash、提交信息、作者、日期和 numstat 增删行。
+  - Git Tab 在 Tauri runtime 中读取真实 Git 状态与提交历史；浏览器预览继续使用 mock 数据。
+  - 非 Git 项目在 Git Tab 显示初始化引导。
+- T6 Git 写操作:
+  - Rust 命令 `git_init(path)` 可初始化普通项目目录为 Git 仓库,并更新项目 `vcs_type`。
+  - Rust 命令 `git_set_remote(id, url)` 可新增或更新 origin 远程地址。
+  - Rust 命令 `git_commit(id, message, files)` 可按选中文件执行 add + commit。
+  - Rust 命令 `git_push(id)`、`git_pull(id)` 可执行 push / fast-forward pull,失败时返回原始 git 错误。
+  - Rust 命令 `git_diff(id, file?, commit?)` 返回结构化 diff 文件、增删行统计和行内容。
+  - Rust 命令 `git_publish_to_github(id, input)` 可初始化非 Git 项目、创建 GitHub 仓库、首次 commit 并推送到 `main`。
+  - Rust 命令 `get_github_token_status()`、`save_github_token(token)` 可将 GitHub Token 保存到系统钥匙串并只返回 masked 状态。
+  - Git Tab 已接入初始化、远程设置、提交弹窗、push/pull 和工作区文件 diff 入口。
+  - 非 Git 项目 Git Tab 支持直接创建仓库并上传；可复用设置页保存的 GitHub Token,也可临时覆盖。
+- T7 项目档案 + 强制留痕:
+  - Rust 命令 `read_archive(id)` 可读取 `<project>/.memoir/archive.md`,解析四个固定分区并同步 `archives` / `projects.archive_completeness`。
+  - Rust 命令 `save_archive(id, sections)` 可写入 `<project>/.memoir/archive.md`,并按四段填充数计算 0/25/50/75/100 完整度。
+  - Archive Tab 四个分区已接入真实读写；浏览器预览继续使用 mock store。
+  - 总览和详情完整度环改为展示档案完整度,低值仍使用警告颜色。
+- T8 DeepSeek 接入:
+  - 设置页可保存/清空 DeepSeek API Key,前端只显示 masked 状态。
+  - Rust 命令 `get_deepseek_key_status`、`save_deepseek_api_key` 管理本机 settings 表中的 Key。
+  - Rust 命令 `generate_archive_ai(id)` 收集文件树与 README/package/Cargo 等关键文件,裁剪上下文后由 Rust 侧调用 DeepSeek `deepseek-chat`。
+  - AI 抽屉在 Tauri runtime 中展示 DeepSeek 四分区草稿；浏览器预览保留 mock 生成。
+  - AI 草稿可在抽屉内校对编辑,保存全部会一次性写入 `.memoir/archive.md`。
+- T9 文档关联:
+  - Rust 命令 `list_documents(id)`、`add_document(id, document)` 可读取和添加项目资料。
+  - Rust 命令 `open_document(id, document_id)` 用系统默认程序打开本地文件或外链。
+  - Rust 命令 `delete_document(id, document_id)` 可删除资料关联。
+  - 资料 Tab 支持添加外链/本地文件、展示列表、点击打开、删除；浏览器预览保留 mock 添加删除。
+- T10 打磨与打包:
+  - 全局搜索支持名称、路径、描述和标签过滤；标签筛选与排序可组合使用。
+  - 总览、详情各 Tab、资料、文件、Git、Diff、AI 抽屉均有空态/加载态/错误态。
+  - 设置页支持扫描目录增删、默认编辑器、主题切换、DeepSeek Key、GitHub Token 和关于信息。
+  - Tauri 配置已切到 `npm run dev` / `npm run build`,并生成过当前 macOS 平台 `Memoir.app` 与 `.dmg`。
+  - 桌面窗口使用自绘交通灯；原生标题栏已关闭,并显式授权 close/minimize/toggle-maximize。
+  - 主窗口内容贴合 Tauri 窗口边界,不再使用浏览器预览式灰色外框、圆角和投影包裹。
+  - 添加项目弹窗的「浏览」按钮已接入本机目录选择命令。
+  - 总览列表模式使用独立行布局,项目身份、摘要、标签状态和操作按钮分区展示。
+  - 侧栏排序区改为关注清单,支持需补档案、有未提交、未上传 GitHub、非 Git 项目、长期未打开、无关联资料筛选。
+  - 排序移动到总览顶部工具栏下拉,继续支持最近打开、最近提交、完整度、名称。
+  - 总览卡片摘要会剥离 Markdown 标记并固定行数,网格卡片保持等高。
+- 总览卡片摘要稳定性:
+  - `list_projects` 会从 `.memoir/archive.md` 读取「项目定位」作为卡片摘要。
+  - `list_projects` 会返回 `docs_count`,用于总览关注清单判断「无关联资料」。
+  - 列表刷新时 Zustand 会保留已加载的档案摘要,避免切换排序后补完档案的项目重新显示红色占位。
+- 项目分类与分类编辑器:
+  - 项目新增固定分类 `android / ios / miniprogram / web / desktop / backend / cli / library / other`。
+  - 扫描和手动添加项目时会自动识别分类；项目详情页可手动覆盖分类。
+  - 侧栏新增分类筛选区,总览卡片和列表行显示独立分类 chip。
+  - 设置页新增分类编辑器配置,支持全局默认编辑器和按分类覆盖。
+  - 打开编辑器时优先使用项目分类对应 preset；macOS GUI 编辑器优先走 `open -a <AppName> <path>`,再回退 CLI 命令。
+- 启动兼容性修复:
+  - Tauri `beforeDevCommand` / `beforeBuildCommand` 改为直接调用本地 `node_modules` 下的 Vite / TypeScript,不再依赖 `npm` 可执行文件必须在 PATH 中。
+  - Tauri SQL 插件保留能力注册,但不再注册历史 migration；数据库建表和兼容迁移由 Rust 后端 `database_pool` 幂等执行。
+- T11 聊天记录关联:
+  - Rust 命令 `import_chat_export(file)` 可解析 ChatGPT / Claude 导出 JSON,并支持 Markdown 导出文件生成候选对话。
+  - Rust 命令 `list_chat_links(id)`、`add_chat_link(id, link)`、`open_chat_link(id, chat_id)`、`delete_chat_link(id, chat_id)` 已接入 `chat_links` 表。
+  - 分享链接限定 `http://` / `https://`;导出文件会 canonicalize 并校验为本地文件。
+  - 资料 Tab 新增「聊天记录」区,可保存 Claude / ChatGPT 分享链接,也可先解析导出文件、选择候选对话后关联到项目。
+  - 导入候选会从对话正文中提取一句摘要,关联项在项目详情可见并可打开/删除。
+- T12 Codex / Claude Code 聊天记录关联:
+  - `chat_links.source` 扩展为 `claude / chatgpt / claude_code / codex`,旧库启动时会自动重建 `chat_links` 以放宽 CHECK 约束并保留原数据。
+  - `import_chat_export(file)` 新增 Codex JSONL 与 Claude Code JSONL 解析。
+  - Rust 命令 `scan_local_chat_exports(input)` 可从默认目录扫描本地会话:
+    - Codex: `~/.codex/sessions/**/*.jsonl`
+    - Claude Code: `~/.claude/projects/**/*.jsonl`,跳过 `subagents` 子目录
+  - 资料 Tab 的「关联聊天」弹窗新增 Codex / Claude Code 来源,导入模式下新增「扫描 Codex」「扫描 Claude Code」快捷入口。
+  - 扫描结果中的候选对话可直接关联,不再要求额外填写导出文件路径。
+  - 已关联的导出文件聊天可在 Memoir 内查看正文详情,详情弹窗可在 Finder 中定位原文件。
+- T13 图标、资料选择器与概览完善:
+  - Tauri bundle 配置已接入 macOS app 图标资源,`Memoir.app` 不再使用空白默认图标。
+  - 资料关联新增本地文件夹类型 `local_dir`,旧库启动时会自动重建 `documents` 表以放宽 CHECK 约束并保留原数据。
+  - 添加资料弹窗支持选择本地文件或本地文件夹,不再只能手动输入路径。
+  - 项目列表和详情页会从项目文件、package/Cargo/README 与 `.memoir/archive.md` 推断技术栈。
+  - 最近活动对 Git 项目展示最新提交摘要/短 hash/提交时间,对非 Git 项目展示最近打开时间。
 
 ## 进行中 / 待处理项
 
-- T2: SQLite schema 与首次启动迁移。
-- T3+: 项目扫描、Git 读取、档案持久化、DeepSeek 转发和资料关联仍为 mock 交互。
-- `pnpm` 当前未在 PATH 中;本轮使用 `/tmp/pnpm-macos/package/pnpm` 和 `/usr/local/bin/npm` 验证。
+- 后续可选: 聊天摘要接入 DeepSeek 二次润色、批量关联多个导出候选、将导入文件复制到 `<project>/.memoir/chats/`。
 
 ## 已知问题和技术债务
 
-- 真实 `pnpm tauri dev` 依赖用户环境 PATH 中存在 pnpm;当前仓库已具备脚本和 Tauri 配置。
+- 设计交付文档中的部分历史文案仍提到 `pnpm`;当前仓库 Tauri 配置已改为直接调用本地 Node 脚本。
 - `node_modules` 是本地验证产物,已通过 `.gitignore` 排除。
-- AI 文案流式输出目前是 mock 数据,不是 DeepSeek 调用。
+- 浏览器预览中的 AI 文案仍为 mock；Tauri runtime 会通过 Rust 命令调用 DeepSeek。
+- 浏览器预览中的资料添加/删除为 mock；Tauri runtime 会持久化到 SQLite 并调用系统默认程序打开。
+- `git_pull(id)` 使用 `git pull --ff-only`,避免自动产生 merge commit；无法快进时会明确报错。
+- GitHub 发布目前只支持创建到 Token 所属账号下,暂未提供组织仓库选择。
 
 ## 关键架构决策及原因
 
 - 先完成 T1 与高保真 UI 迁移,不越级实现 T2-T9 后端;符合任务序列依赖。
 - 设计 token 集中在 `src/styles/tokens.css`,组件只引用 CSS 变量,便于后续主题和 shadcn 对齐。
 - 业务状态集中在 Zustand store,便于后续把 mock 数据替换成 Tauri invoke 数据源。
-
+- 数据库迁移 SQL 独立放在 `src-tauri/src/db/schema.sql`,Rust 用 `include_str!` 注册,方便脚本验证和后续维护。
+- T3 使用 canonical path 作为项目唯一键,避免同一路径通过不同相对写法重复入库。
+- T4 文件读取由 Rust 侧统一做 canonicalize 与相对路径校验,避免前端传入路径越界读取项目外文件。
+- T5 继续使用系统 `git` 命令而不是引入 libgit2；状态缓存只写 `git_cache`,提交历史按需读取不扩展 schema。
+- T6 commit/diff 的文件路径只接受项目内相对路径,revision 只接受安全字符集,避免把前端参数解释为 git option。
+- GitHub 首次发布使用 GitHub REST API 创建仓库,再用临时认证 URL 执行 `git push`;本地 `origin` 保存为不含 Token 的 `https://github.com/...git`。
+- GitHub Token 不进入 SQLite；长期凭证交给系统钥匙串保存,发布时仅把临时认证 URL 交给单次 `git push`。
+- T7 档案 Markdown 使用四个固定二级标题,未知标题在解析时会被忽略,避免把外部手写内容误并入 Memoir 分区。
+- T8 DeepSeek Key 按任务要求暂存 SQLite `settings.deepseek_api_key`;所有外网请求只在 Rust 侧通过 `reqwest` 发生。
+- T9 为满足验收中的打开/删除,在 `add_document` / `list_documents` 之外补充 `open_document` / `delete_document` 命令。
+- T10 总览摘要不新增 schema 字段,直接读取已有 `.memoir/archive.md` 的「项目定位」段,避免对已创建 SQLite 数据库做额外迁移。
+- 项目分类使用固定枚举和数据库 CHECK 约束；自动识别只在扫描/导入时写入,详情页手动覆盖后不会被普通列表刷新覆盖。
+- 编辑器只允许 preset 白名单,不执行用户输入的任意 shell；macOS 下先用 App Name 打开 GUI 编辑器,解决 Tauri 进程拿不到 shell PATH 时 `code` / `cursor` 失效的问题。
+- 数据库初始化不再依赖 Tauri SQL 插件 migration 校验；历史版本曾多次修改同一个 v1 schema,继续校验会导致旧库启动 panic。后续 schema 兼容改动优先放在 Rust 幂等迁移逻辑中。
+- 聊天记录使用独立 `chat_links` 表,不混入 `documents`;导入文件先返回候选再由用户选择关联,避免把官方导出中的全部历史对话一次性挂到项目上。
+- Codex / Claude Code 会话只在用户主动导入或扫描时读取,扫描结果仍是候选列表；默认只保存源文件路径、标题和摘要,暂不复制完整正文。
+- `documents` 继续作为项目资料关联表,新增 `local_dir` 只扩展资料类型,不改变聊天记录和项目档案业务边界。
+- 项目概览的技术栈推断不新增 schema 字段,由列表/详情读取时即时从档案文本和项目标志文件推断,避免为派生信息做持久化迁移。

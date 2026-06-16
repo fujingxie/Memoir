@@ -3,10 +3,43 @@ export type Route = "overview" | "detail" | "settings";
 export type DetailTab = "overview" | "files" | "git" | "archive" | "docs";
 export type ProjectStatus = "active" | "archived";
 export type SortKey = "opened" | "commit" | "completeness" | "name";
+export type CategoryKey =
+  | "android"
+  | "ios"
+  | "miniprogram"
+  | "web"
+  | "desktop"
+  | "backend"
+  | "cli"
+  | "library"
+  | "other";
+export type EditorKey =
+  | "code"
+  | "cursor"
+  | "webstorm"
+  | "zed"
+  | "android_studio"
+  | "xcode"
+  | "wechat_devtools";
+export type FocusKey =
+  | "needsArchive"
+  | "dirty"
+  | "noGithubRemote"
+  | "nonGit"
+  | "stale"
+  | "noDocs";
 export type ViewMode = "grid" | "list";
 export type GitState = "clean" | "dirty";
 export type ArchiveKey = "positioning" | "tech" | "deploy" | "todos";
-export type LanguageKey = "ts" | "js" | "rust" | "python" | "go" | "csharp" | "shell";
+export type LanguageKey =
+  | "ts"
+  | "js"
+  | "rust"
+  | "python"
+  | "go"
+  | "csharp"
+  | "shell"
+  | "unknown";
 
 export interface LanguageMeta {
   label: string;
@@ -34,6 +67,7 @@ export interface CommitInfo {
 
 export interface FileNode {
   name: string;
+  path?: string;
   type: "folder" | "file";
   children?: FileNode[];
 }
@@ -46,9 +80,30 @@ export interface ArchiveSection {
 export type ArchiveState = Record<ArchiveKey, ArchiveSection>;
 
 export interface ProjectDocument {
-  type: "file" | "link";
+  id?: string;
+  type: "file" | "folder" | "link";
   name: string;
   meta: string;
+  pathOrUrl?: string;
+  createdAt?: string | null;
+}
+
+export type ChatSource = "claude" | "chatgpt" | "claude_code" | "codex";
+export type ChatLinkKind = "link" | "import";
+
+export interface ProjectChatLink {
+  id?: string;
+  source: ChatSource;
+  kind: ChatLinkKind;
+  title: string;
+  summary?: string | null;
+  urlOrFile: string;
+  capturedAt?: string | null;
+}
+
+export interface ProjectChatDetail extends ProjectChatLink {
+  content: string;
+  truncated: boolean;
 }
 
 export interface Project {
@@ -56,10 +111,14 @@ export interface Project {
   name: string;
   path: string;
   lang: LanguageKey;
+  category: CategoryKey;
   pinned?: boolean;
   description: string;
   lastOpened: string;
   lastCommit: string;
+  lastOpenedAt?: string | null;
+  lastCommitAt?: string | null;
+  createdAt?: string | null;
   lastCommitMsg: string;
   lastCommitHash: string;
   git: GitInfo;
@@ -69,7 +128,9 @@ export interface Project {
   commits: CommitInfo[];
   files: FileNode;
   archive: ArchiveState;
+  archiveCompleteness?: number;
   docs: ProjectDocument[];
+  docsCount?: number;
 }
 
 export interface ToastState {
@@ -81,4 +142,5 @@ export interface DiffState {
   open: boolean;
   commit: CommitInfo | null;
   mode: "commit" | "working";
+  file?: string | null;
 }
