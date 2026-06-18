@@ -63,7 +63,8 @@ pub fn run() {
             settings::pick_file,
             settings::pick_directory,
             settings::open_project_dir,
-            settings::open_project_editor
+            settings::open_project_editor,
+            settings::open_project_terminal
         ])
         .run(tauri::generate_context!())
         .expect("failed to run Memoir");

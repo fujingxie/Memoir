@@ -95,6 +95,9 @@
   - 添加资料弹窗支持选择本地文件或本地文件夹,不再只能手动输入路径。
   - 项目列表和详情页会从项目文件、package/Cargo/README 与 `.memoir/archive.md` 推断技术栈。
   - 最近活动对 Git 项目展示最新提交摘要/短 hash/提交时间,对非 Git 项目展示最近打开时间。
+- T14 项目终端快捷入口:
+  - Rust 命令 `open_project_terminal(id)` 可在项目路径下打开系统终端。
+  - 项目详情页顶部新增「终端」按钮,用于快速进入当前项目目录执行命令。
 
 ## 进行中 / 待处理项
 
@@ -127,6 +130,7 @@
 - T10 总览摘要不新增 schema 字段,直接读取已有 `.memoir/archive.md` 的「项目定位」段,避免对已创建 SQLite 数据库做额外迁移。
 - 项目分类使用固定枚举和数据库 CHECK 约束；自动识别只在扫描/导入时写入,详情页手动覆盖后不会被普通列表刷新覆盖。
 - 编辑器只允许 preset 白名单,不执行用户输入的任意 shell；macOS 下先用 App Name 打开 GUI 编辑器,解决 Tauri 进程拿不到 shell PATH 时 `code` / `cursor` 失效的问题。
+- 终端快捷入口不复用编辑器配置；macOS 使用 Terminal AppleScript 直接 `cd` 到项目路径,避免依赖 shell PATH。
 - 数据库初始化不再依赖 Tauri SQL 插件 migration 校验；历史版本曾多次修改同一个 v1 schema,继续校验会导致旧库启动 panic。后续 schema 兼容改动优先放在 Rust 幂等迁移逻辑中。
 - 聊天记录使用独立 `chat_links` 表,不混入 `documents`;导入文件先返回候选再由用户选择关联,避免把官方导出中的全部历史对话一次性挂到项目上。
 - Codex / Claude Code 会话只在用户主动导入或扫描时读取,扫描结果仍是候选列表；默认只保存源文件路径、标题和摘要,暂不复制完整正文。

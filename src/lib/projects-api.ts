@@ -691,6 +691,12 @@ export async function openPersistedProjectEditor(id: string): Promise<string | n
   return invoke<string>("open_project_editor", { id: projectId });
 }
 
+export async function openPersistedProjectTerminal(id: string): Promise<string | null> {
+  const projectId = persistedProjectId(id);
+  if (!isTauriRuntime() || projectId === null) return null;
+  return invoke<string>("open_project_terminal", { id: projectId });
+}
+
 export function canUsePersistedProject(project: Project): boolean {
   return isTauriRuntime() && persistedProjectId(project.id) !== null;
 }

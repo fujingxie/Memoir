@@ -142,6 +142,18 @@ pub async fn open_project_editor<R: Runtime>(app: AppHandle<R>, id: i64) -> Resu
 }
 
 #[tauri::command]
+pub async fn open_project_terminal<R: Runtime>(
+    app: AppHandle<R>,
+    id: i64,
+) -> Result<String, String> {
+    let pool = crate::projects::database_pool(&app).await?;
+    let path = crate::projects::get_project_path_by_id(&pool, id).await?;
+    let dir = normalize_existing_dir(&path)?;
+    launch_terminal(&dir).map_err(|error| format!("无法打开终端 {}: {error}", dir.display()))?;
+    Ok(format!("已打开终端 {}", dir.display()))
+}
+
+#[tauri::command]
 pub fn pick_directory(initial_path: String) -> Result<Option<String>, String> {
     pick_directory_platform(&initial_path)
 }
@@ -391,6 +403,111 @@ fn editor_launch_commands(preset: EditorPreset, dir: &PathBuf) -> Vec<EditorLaun
 fn run_editor_launch_command(command: &EditorLaunchCommand) -> Result<(), String> {
     let mut process = Command::new(&command.program);
     process.args(&command.args);
+    if command.wait_for_status {
+        let output = process
+            .output()
+            .map_err(|error| format!("{} {:?}: {error}", command.program, command.args))?;
+        if output.status.success() {
+            return Ok(());
+        }
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        return Err(format!(
+            "{} {:?} 失败: {}",
+            command.program, command.args, stderr
+        ));
+    }
+    process
+        .spawn()
+        .map_err(|error| format!("{} {:?}: {error}", command.program, command.args))?;
+    Ok(())
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct TerminalLaunchCommand {
+    program: String,
+    args: Vec<String>,
+    current_dir: Option<String>,
+    wait_for_status: bool,
+}
+
+fn launch_terminal(dir: &PathBuf) -> Result<(), String> {
+    let mut errors = Vec::new();
+
+    for command in terminal_launch_commands(dir) {
+        match run_terminal_launch_command(&command) {
+            Ok(()) => return Ok(()),
+            Err(error) => errors.push(error),
+        }
+    }
+
+    Err(errors.join("; "))
+}
+
+fn terminal_launch_commands(dir: &PathBuf) -> Vec<TerminalLaunchCommand> {
+    let dir_string = dir.to_string_lossy().to_string();
+
+    #[cfg(target_os = "macos")]
+    {
+        let script = format!(
+            "tell application \"Terminal\"\n\
+             activate\n\
+             do script \"cd \" & quoted form of \"{}\"\n\
+             end tell",
+            escape_applescript_string(&dir_string)
+        );
+        return vec![TerminalLaunchCommand {
+            program: "osascript".to_string(),
+            args: vec!["-e".to_string(), script],
+            current_dir: None,
+            wait_for_status: true,
+        }];
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        return vec![
+            TerminalLaunchCommand {
+                program: "wt".to_string(),
+                args: vec!["-d".to_string(), dir_string.clone()],
+                current_dir: None,
+                wait_for_status: false,
+            },
+            TerminalLaunchCommand {
+                program: "powershell".to_string(),
+                args: vec![
+                    "-NoProfile".to_string(),
+                    "-ExecutionPolicy".to_string(),
+                    "Bypass".to_string(),
+                    "-Command".to_string(),
+                    "Start-Process -FilePath powershell -WorkingDirectory $args[0]".to_string(),
+                    dir_string,
+                ],
+                current_dir: None,
+                wait_for_status: false,
+            },
+        ];
+    }
+
+    #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
+    {
+        ["x-terminal-emulator", "gnome-terminal", "konsole"]
+            .into_iter()
+            .map(|program| TerminalLaunchCommand {
+                program: program.to_string(),
+                args: Vec::new(),
+                current_dir: Some(dir_string.clone()),
+                wait_for_status: false,
+            })
+            .collect()
+    }
+}
+
+fn run_terminal_launch_command(command: &TerminalLaunchCommand) -> Result<(), String> {
+    let mut process = Command::new(&command.program);
+    process.args(&command.args);
+    if let Some(current_dir) = &command.current_dir {
+        process.current_dir(current_dir);
+    }
     if command.wait_for_status {
         let output = process
             .output()
@@ -695,5 +812,32 @@ mod tests {
         assert_eq!(fallback.program, "code");
         assert_eq!(fallback.args, vec!["/tmp/memoir project"]);
         assert!(!fallback.wait_for_status);
+    }
+
+    #[test]
+    fn builds_terminal_launch_commands_at_project_path() {
+        let dir = PathBuf::from("/tmp/memoir project");
+        let commands = terminal_launch_commands(&dir);
+        let first = commands.first().expect("terminal command");
+
+        #[cfg(target_os = "macos")]
+        {
+            assert_eq!(first.program, "osascript");
+            assert_eq!(first.args[0], "-e");
+            assert!(first.args[1].contains("Terminal"));
+            assert!(first.args[1].contains("/tmp/memoir project"));
+            assert!(first.wait_for_status);
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            assert_eq!(first.program, "wt");
+            assert_eq!(first.args, vec!["-d", "/tmp/memoir project"]);
+        }
+
+        #[cfg(all(not(target_os = "macos"), not(target_os = "windows")))]
+        {
+            assert_eq!(first.current_dir.as_deref(), Some("/tmp/memoir project"));
+        }
     }
 }

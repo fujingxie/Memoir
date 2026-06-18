@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 2026-06-18 — T14 项目终端快捷入口
+
+- 更新 `src-tauri/src/settings.rs`:
+  - 新增 `open_project_terminal(id)` Tauri 命令。
+  - macOS 使用 Terminal AppleScript 打开新终端并 `cd` 到项目路径。
+  - Windows / Linux 提供基础终端 fallback。
+  - 新增终端启动命令构造单元测试。
+- 更新 `src-tauri/src/lib.rs`,注册 `open_project_terminal`。
+- 更新 `src/lib/projects-api.ts` / `src/features/ProjectDetail.tsx`:
+  - 新增 `openPersistedProjectTerminal(id)` invoke 封装。
+  - 项目详情页顶部新增「终端」按钮。
+  - 「编辑器」按钮改用代码图标,与终端入口区分。
+- 验证:
+  - `cargo test` in `src-tauri` 通过,40 个单元测试全绿。
+  - `npm run build` 通过。
+
 ## 2026-06-16 — T13 图标、资料选择器与概览数据完善
 
 - 更新 `src-tauri/tauri.conf.json` 与 `src-tauri/icons/`:

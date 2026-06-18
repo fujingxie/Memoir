@@ -29,6 +29,7 @@ import {
   openPersistedChatLink,
   openPersistedProjectDir,
   openPersistedProjectEditor,
+  openPersistedProjectTerminal,
   openPersistedDocument,
   pickPersistedDirectory,
   pickPersistedFile,
@@ -138,6 +139,15 @@ export function ProjectDetail({
       onToast(error instanceof Error ? error.message : "打开目录失败", "error");
     }
   };
+  const openTerminal = async () => {
+    try {
+      const message = await openPersistedProjectTerminal(project.id);
+      onToast(message ?? `已打开 ${project.name} 的终端`, "success");
+    } catch (error) {
+      console.log("[DEBUG][ProjectDetail.openTerminal]", { error }, new Date().toISOString());
+      onToast(error instanceof Error ? error.message : "打开终端失败", "error");
+    }
+  };
 
   return (
     <section className="detail-shell">
@@ -174,8 +184,12 @@ export function ProjectDetail({
         </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" onClick={() => void openInEditor()}>
-            <AppIcon name="terminal" size={15} />
+            <AppIcon name="code" size={15} />
             编辑器
+          </Button>
+          <Button variant="secondary" onClick={() => void openTerminal()}>
+            <AppIcon name="terminal" size={15} />
+            终端
           </Button>
           <Button variant="primary" onClick={() => void openDirectory()}>
             <AppIcon name="folderOpen" size={15} />
